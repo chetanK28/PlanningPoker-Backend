@@ -113,8 +113,8 @@ io.on("connection", (socket) => {
 });
  
 // 👇 Binding to 0.0.0.0 allows LAN access
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://10.77.161.113:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
  

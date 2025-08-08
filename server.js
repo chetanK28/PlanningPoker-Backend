@@ -2,38 +2,36 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
+require("dotenv").config(); // Optional: load .env locally
 
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Allow both local and Azure Static Web App origins
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://blue-ground-028888400.1.azurestaticapps.net"
-];
-
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST"],
-  credentials: true
-}));
+// ✅ Use env var for allowed origin
+const FRONTEND_ORIGIN = process.env.CORS_ORIGIN || "*";
 
 const io = socketIo(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: [FRONTEND_ORIGIN],
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
+
+// ✅ Restrict CORS in Express
+app.use(cors({
+  origin: [FRONTEND_ORIGIN],
+  credentials: true,
+}));
 
 const PORT = process.env.PORT || 3001;
 
-// Test route to check server from browser
+// ✅ Test route
 app.get("/", (req, res) => {
   res.send("🟢 Socket.IO server is running.");
 });
 
-// Room structure
+// ✅ Room structure
 let rooms = {};
 
 io.on("connection", (socket) => {
@@ -53,7 +51,7 @@ io.on("connection", (socket) => {
         votes: {},
         usernames: {},
         title: "",
-        description: ""
+        description: "",
       };
     }
 
@@ -127,7 +125,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// 👇 Binding to 0.0.0.0 allows LAN access
+// ✅ Bind to all interfaces for Azure
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

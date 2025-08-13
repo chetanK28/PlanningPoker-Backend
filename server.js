@@ -6,9 +6,7 @@ const cors = require("cors");
 const app = express();
 const server = http.createServer(app);
  
-/**
- * Only allow your SWA origin (add more with commas if you later add custom domains).
- */
+// allow your SWA origin
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_ORIGIN ||
   "https://blue-ground-028888400.1.azurestaticapps.net";
@@ -16,7 +14,7 @@ const FRONTEND_ORIGIN =
 const corsOptions = {
   origin: FRONTEND_ORIGIN,
   methods: ["GET", "POST"],
-  credentials: false, // keep false (client isn't using withCredentials)
+  credentials: false,
 };
  
 const io = socketIo(server, { cors: corsOptions });
@@ -24,7 +22,8 @@ app.use(cors(corsOptions));
  
 const PORT = process.env.PORT || 3001;
  
-// Health check
+// Root + Health
+app.get("/", (req, res) => res.send("🟢 Socket.IO server is running."));
 app.get("/health", (req, res) => res.json({ ok: true }));
  
 // ---- In-memory room state ----
@@ -36,20 +35,9 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ room, username, role }) => {
     if (!room || !username || !role) return;
     socket.join(room);
- 
-    if (!rooms[room]) {
-      rooms[room] = {
-        users: {},
-        votes: {},
-        usernames: {},
-        title: "",
-        description: "",
-      };
-    }
- 
+    rooms[room] ||= { users: {}, votes: {}, usernames: {}, title: "", description: "" };
     rooms[room].users[socket.id] = { username, role };
     rooms[room].usernames[socket.id] = username;
- 
     io.to(room).emit("room-update", rooms[room]);
   });
  
@@ -83,32 +71,23 @@ io.on("connection", (socket) => {
     for (const room in rooms) {
       const username = rooms[room].usernames[socket.id];
       if (!username) continue;
- 
       delete rooms[room].users[socket.id];
       delete rooms[room].usernames[socket.id];
       delete rooms[room].votes[username];
- 
       io.to(room).emit("room-update", rooms[room]);
-      if (
-        Object.keys(rooms[room].users).length === 0 &&
-        Object.keys(rooms[room].votes).length === 0
-      ) {
+      if (!Object.keys(rooms[room].users).length && !Object.keys(rooms[room].votes).length) {
         delete rooms[room];
       }
     }
   });
 });
  
-// Extra low-level error logging (useful on Azure)
 io.engine.on("connection_error", (err) => {
   console.error("⚠️ engine connection_error", {
-    code: err.code,
-    message: err.message,
-    context: err.context,
+    code: err.code, message: err.message, context: err.context,
   });
 });
  
-// Bind 0.0.0.0 for containers/App Service
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend listening on :${PORT}`);
   console.log(`CORS allowed origin: ${FRONTEND_ORIGIN}`);
